@@ -4,6 +4,8 @@ cliFBChat
 
 Receive and reply facebook messages with terminal.
 
+It's also print notification of facebook.
+
 Powered by (modified) fbchat python lib(https://github.com/carpedm20/fbchat/).
 
 **No XMPP or API key is needed**. Just use your ID and PASSWORD.
