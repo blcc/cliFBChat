@@ -51,7 +51,10 @@ Show who talk to now.
 
 Same as /talkto, but use user id if already know.
 
+    [Other things]
+
+Send message to user/group chat.
+
 Author
 =======
-
 blc
