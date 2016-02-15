@@ -33,16 +33,22 @@ Commands
 --------
 
 /whois [username]
+
 Find user
 
+
 /talkto [number]
+
 Set message send destination. User only.
 
+
 [enter]
+
 Show who talk to now.
 
 
 /set [FB id with long number] [is group chat(1) or no(0)]
+
 Same as /talkto, but use user id if already know.
 
 Author
