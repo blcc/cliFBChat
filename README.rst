@@ -32,7 +32,7 @@ Or send message to someone with following command.
 Commands
 --------
 
-.. code-block:: console
+.. code-block:: 
     $ /whois [username]
 
 Find user
