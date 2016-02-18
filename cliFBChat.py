@@ -37,12 +37,13 @@ class myfb(fbchat.Client):
 
         ## group chat use another kind of json.
         try:   ## if group chat
-            self.last_tid = metadata['message']['thread_fbid']
+            fbid = metadata['message']['thread_fbid']
+            self.last_tid = fbid
             self.last_tname = metadata['message']['group_thread_info']['name']
             self.last_isgroup = True
         except: ## if personal chat
             #print(exc_info())
-            if not author_id == self.uid:
+            if not author_id == self.uid and author_id:
                 self.last_tid = author_id
                 self.last_tname = author_name
                 self.last_isgroup = False
@@ -82,9 +83,14 @@ def do_cmd(a,fbid,fbname,c):
             print(colored("Find no user",'red'))
         return
     if re.match("^\/talkto ",a):
-        i = int(a[8:])
+        try:
+            i = int(a[8:])
+        except:
+            print(colored("/talkto [number]",'red'))
+            return
+            
         if c.last_users:
-            print("talk to "+c.last_users[i].name)
+            print(colored("talk to ","red")+colored(c.last_users[i].name,"yellow"))
             c.last_tid = c.last_users[i].uid
             c.last_tname = c.last_users[i].name
             c.last_isgroup = False
