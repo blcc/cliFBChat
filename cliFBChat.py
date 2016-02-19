@@ -68,6 +68,9 @@ class myfb(fbchat.Client):
             tt = "%s%s: %s"%(colored(timestamp,'blue'),colored(author_name,'green'),message)
             print(tt)
 
+    def on_notify(self,text,metadata):
+        print(colored(re.sub("\n",'',text),"cyan"))
+        
 def do_cmd(a,fbid,fbname,c):
     if re.match("^\/whois ",a):
         users = c.getUsers(a[7:])

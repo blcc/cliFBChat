@@ -448,7 +448,7 @@ class Client(object):
                 try:
                     likemsg = m['nodes'][0]['unaggregatedTitle']['text']
                     #likemsg = m['nodes'][0]['unaggregatedTitle']['text']
-                    self.on_like(likemsg,m)
+                    self.on_notify(likemsg,m)
                 except :
                     open("like_err.log","a").write(str(m)+"\n")
                     open("like_err.log","a").write(str(m['nodes'])+"\n")
@@ -456,7 +456,7 @@ class Client(object):
                     open("like_err.log","a").write(str(m['nodes'][0]['unaggregatedTitle'].keys())+"\n")
                     print(m['nodes'][0]['unaggregatedTitle']['text'])
                     #print(type(m['nodes'][0]['unaggregatedTitle']['text']))
-                    self.on_like(u'someone gives you a like',m)
+                    self.on_notify(u'someone gives you a like',m)
             else:
               open("log.txt","a").write(str(m)+"\n")
               #print(colored(m,"blue"))
@@ -492,7 +492,7 @@ class Client(object):
 
     def on_read(self, author, reader, time):
         pass
-    def on_like(self, text, metadata):
-        print(colored(re.sub("\n",'',text),"cyan"))
+    def on_notify(self, text, metadata):
+        pass
     def stop_listen(self):
         self.listening = False
