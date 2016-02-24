@@ -57,6 +57,9 @@ Same as /talkto, but use user id if already know.
 
 Send message to user/group chat.
 
+Known issue
+=======
+Needs re-login after long time(over night) idle to send message.
 Author
 =======
 blc
