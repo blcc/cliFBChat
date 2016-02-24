@@ -74,6 +74,7 @@ class myfb(fbchat.Client):
 def do_cmd(a,fbid,fbname,c):
     if re.match("^\/whois ",a):
         users = c.getUsers(a[7:])
+        for u in users: u.isgroup = False
         c.last_users = users
         nuser = len(users)
         if users:
@@ -96,7 +97,7 @@ def do_cmd(a,fbid,fbname,c):
             print(colored("talk to ","red")+colored(c.last_users[i].name,"yellow"))
             c.last_tid = c.last_users[i].uid
             c.last_tname = c.last_users[i].name
-            c.last_isgroup = False
+            c.last_isgroup = c.last_users[i].isgroup
         else:
             print(colored("Find no user",'red'))
         return
@@ -107,6 +108,29 @@ def do_cmd(a,fbid,fbname,c):
         c.last_tname = indata[0]
         c.last_isgroup = indata[1]
         print(colored("set id to %s"%(str(indata)),'red'))
+        return
+    if re.match("^\/history",a):
+        i = 5
+        if len(a) > 8:
+            try:
+                i = int(a[8:])
+            except:
+                print(colored("/history [number]",'red'))
+                return
+        threads = c.getThreadList(0,end=i)
+        for t in threads: 
+            if not t.name: t.name = t.other_user_name
+        for t in threads: t.uid = t.thread_fbid
+        for t in threads: t.isgroup = not t.is_canonical
+        nthreads = len(threads)
+        c.last_users = threads
+        if threads:
+            for i in range(nthreads):
+                print("  %s : %s "%
+                    (i,colored(threads[i].name,'cyan')))
+            print("use /talkto [number]  ")
+        else:
+            print(colored("Find no chat",'red'))
         return
         
     if fbid and a:

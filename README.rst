@@ -38,10 +38,14 @@ Commands
 
 Find user
 
+    /history [number]
+
+Show [number] historical chats. Default is 5.
+
 
     /talkto [number]
 
-Set message send destination. User only.
+Set message send destination.
 
 
     [enter]
@@ -60,6 +64,7 @@ Send message to user/group chat.
 Known issue
 =======
 Needs re-login after long time(over night) idle to send message.
+
 Author
 =======
 blc
