@@ -311,6 +311,7 @@ class Client(object):
                     thread["other_user_name"] = participants[int(thread["other_user_fbid"])]
                 except:
                     thread["other_user_name"] = ""
+                if not thread['name']: thread['name'] = participants[thread["thread_fbid"]]
                 t = Thread(**thread)
                 self.threads.append(t)
 

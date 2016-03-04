@@ -68,7 +68,6 @@ Needs re-login after long time(over night) idle to send message.
 Occasional encoding error.
 (ex. chinese(UTF-8) name and send pure ascii message.)
 
-/history sometime display no name.
 Author
 =======
 blc
