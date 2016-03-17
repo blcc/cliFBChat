@@ -423,7 +423,7 @@ class Client(object):
                     open("log.txt","a").write(str(m)+"\n")
             elif m['type'] in ['delta']:
                 try:
-                    mid =   m['delta']['messageId']
+                    mid =   m['delta']['messageMetadata']['messageId']
                     message=m['delta']['body']
                     fbid =  m['delta']['actorFbId']
                     name =  fbid
