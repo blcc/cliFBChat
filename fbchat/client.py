@@ -17,7 +17,6 @@ from bs4 import BeautifulSoup as bs
 from .utils import *
 from .models import *
 from .stickers import *
-from termcolor import colored
 
 # URLs
 LoginURL     ="https://m.facebook.com/login.php?login_attempt=1"
@@ -403,7 +402,6 @@ class Client(object):
         self.seq = j.get('seq', '0')
         return j
 
-
     def _parseMessage(self, content):
         '''
         Get message and author name from content.
@@ -452,15 +450,9 @@ class Client(object):
                     self.on_notify(likemsg,m)
                 except :
                     open("like_err.log","a").write(str(m)+"\n")
-                    open("like_err.log","a").write(str(m['nodes'])+"\n")
-                    open("like_err.log","a").write(str(m['nodes'][0])+"\n")
-                    open("like_err.log","a").write(str(m['nodes'][0]['unaggregatedTitle'].keys())+"\n")
-                    print(m['nodes'][0]['unaggregatedTitle']['text'])
-                    #print(type(m['nodes'][0]['unaggregatedTitle']['text']))
                     self.on_notify(u'someone gives you a like',m)
             else:
               open("log.txt","a").write(str(m)+"\n")
-              #print(colored(m,"blue"))
 
     def listen(self, markAlive=True):
         self.listening = True
@@ -485,8 +477,6 @@ class Client(object):
     def on_message(self, mid, author_id, author_name, message, metadata):
         self.markAsDelivered(author_id, mid)
         self.markAsRead(author_id)
-        print("%s : %s %s"%(colored(author_name,'green'),message,colored(" @mid="+mid,"blue")))
-        open("msg.txt","a").write(str(m)+"\n")
 
     def on_typing(self, author_id):
         pass
