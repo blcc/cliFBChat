@@ -143,6 +143,7 @@ def do_cmd(a,fbid,fbname,c):
         return
     if re.match("^\/",a):
         print("%s"%(colored("Want to use command? ","red")))
+        return
         
     if fbid and a:
         print(colored("[%s] send %s to %s "%(('ok' if c.send(fbid,a) else 'failed'),a,fbname),"blue"))
