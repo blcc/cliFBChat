@@ -11,8 +11,10 @@
 import requests
 from uuid import uuid1
 from random import random, choice
+import time
 from datetime import datetime
 from bs4 import BeautifulSoup as bs
+from sys import exc_info
 
 from .utils import *
 from .models import *
@@ -64,6 +66,8 @@ class Client(object):
         self.payloadDefault={}
         self.client = 'mercury'
         self.listening = False
+        self.roster = dict()
+        self.mid = ''
 
         if not user_agent:
             user_agent = choice(USER_AGENTS)
@@ -116,6 +120,12 @@ class Client(object):
         self.req_counter+=1
         return self._session.post(url, headers=self._header, data=query, timeout=timeout)
 
+    def _roster(self,fbid):
+        try:
+            name = self.roster[fbid]
+            return name
+        except:
+            return fbid
     def login(self):
         if not (self.email and self.password):
             raise Exception("id and password or config is needed")
@@ -132,6 +142,7 @@ class Client(object):
             self.client_id = hex(int(random()*2147483648))[2:]
             self.start_time = now()
             self.uid = int(self._session.cookies['c_user'])
+            self.roster[str(self.uid)] = 'me'
             self.user_channel = "p_" + str(self.uid)
             self.ttstamp = ''
 
@@ -190,6 +201,8 @@ class Client(object):
         for entry in j['payload']['entries']:
             if entry['type'] == 'user':
                 users.append(User(entry))
+                self.roster[entry['uid']] = entry['text']
+
         return users # have bug TypeError: __repr__ returned non-string (type bytes)
 
     def send(self, thread_id, message=None, like=None):
@@ -270,7 +283,6 @@ class Client(object):
             messages.append(Message(**message))
         return list(reversed(messages))
 
-
     def getThreadList(self, start, end=None):
         """Get thread list of your facebook account.
 
@@ -301,6 +313,7 @@ class Client(object):
                 participants[participant["fbid"]] = participant["name"]
         except Exception as e:
           print(j)
+          return None
 
         # Prevent duplicates in self.threads
         threadIDs=[getattr(x, "thread_id") for x in self.threads]
@@ -310,8 +323,10 @@ class Client(object):
                     thread["other_user_name"] = participants[int(thread["other_user_fbid"])]
                 except:
                     thread["other_user_name"] = ""
-                if not thread['name']: thread['name'] = participants[thread["thread_fbid"]]
+                if not thread['name'] and thread["thread_fbid"] in participants.keys(): thread['name'] = participants[thread["thread_fbid"]]
                 t = Thread(**thread)
+                self.roster[thread["thread_fbid"]] = thread['name']
+                ## not done: include other_user_name in self.roster
                 self.threads.append(t)
 
         return self.threads
@@ -366,7 +381,6 @@ class Client(object):
         r = self._get(PingURL, data)
         return r.ok
 
-
     def _getSticky(self):
         '''
         Call pull api to get sticky and pool parameter,
@@ -402,6 +416,59 @@ class Client(object):
         self.seq = j.get('seq', '0')
         return j
 
+    def _parseTimeInMessage(self,metadata):
+        if 'message' in metadata.keys(): ## full msg json
+            msgtime = metadata['message']['timestamp']
+        else:                            ## delta msg
+            msgtime = metadata['delta']['messageMetadata']['timestamp']
+
+        msgtime = int(msgtime)/1000
+        timestamp = time.strftime("%H:%M",time.localtime(msgtime))
+        return timestamp
+
+    def _parseGroupMessage(self,metadata):
+        #print("_parseGroupMessage(): parsing msg")
+        if 'delta' ==  metadata['type']:
+            thread_fbid = metadata['delta']['messageMetadata']['threadKey']['threadFbId']
+            message=metadata['delta']['body']
+            mid = metadata['delta']['messageMetadata']['messageId']
+            sender_fbid = metadata['delta']['messageMetadata']['actorFbId']
+            thread_name = thread_fbid
+            sender_name = sender_fbid
+            if fbid in self.roster.keys(): self.last_tname = self.roster[fbid]
+            if sender_fbid in self.roster.keys(): sender_name = self.roster[fbid]
+        elif 'messaging' ==  metadata['type']:
+            thread_fbid = metadata['message']['thread_fbid']
+            message=metadata['message']['body']
+            mid = m['message']['mid']
+            thread_name = metadata['message']['group_thread_info']['name']
+            sender_fbid = metadata['message']['sender_fbid']
+            sender_name = metadata['message']['sender_name']
+            self.roster[thread_fbid] = thread_name
+            self.roster[sender_fbid] = sender_name
+        #print("_parsePersonalMessage(): get "+message)
+        #print(mid)
+        return message,mid,thread_fbid,sender_fbid
+        
+    def _parsePersonalMessage(self,metadata):
+        #print("_parsePersonalMessage(): parsing msg")
+        if metadata['type'] in ['delta']:
+            mid =   metadata['delta']['messageMetadata']['messageId']
+            message=metadata['delta']['body']
+            fbid =  metadata['delta']['messageMetadata']['actorFbId']
+        elif metadata['type'] in ['m_messaging', 'messaging']:
+            mid =   metadata['message']['mid']
+            message=metadata['message']['body']
+            fbid =  metadata['message']['sender_fbid']
+            name =  metadata['message']['sender_name']
+            self.roster[fbid] = name
+        #print("_parsePersonalMessage(): get "+message)
+        #print(mid)
+        return message,mid,fbid
+
+    def _isDeltaMsg(self,m):
+        if m['type'] in ['delta'] and 'body' in m['delta'].keys(): return True
+        return False
     def _parseMessage(self, content):
         '''
         Get message and author name from content.
@@ -410,25 +477,40 @@ class Client(object):
         if 'ms' not in content:
             return
         for m in content['ms']:
-            if m['type'] in ['m_messaging', 'messaging']:
+            if m['type'] in ['m_messaging', 'messaging'] or self._isDeltaMsg(m):
+                thread_id = ''
+                mid = ''
+                sender_fbid = ''
                 try:
-                    mid =   m['message']['mid']
-                    message=m['message']['body']
-                    fbid =  m['message']['sender_fbid']
-                    name =  m['message']['sender_name']
-                    self.on_message(mid, fbid, name, message, m)
+                    message,mid,thread_id,sender_fbid =  self._parseGroupMessage(m)
                 except:
-                    open("log.txt","a").write(str(m)+"\n")
-            elif m['type'] in ['delta']:
-                try:
-                    mid =   m['delta']['messageMetadata']['messageId']
-                    message=m['delta']['body']
-                    fbid =  m['delta']['actorFbId']
-                    name =  fbid
-                    self.on_message(mid, fbid, name, message, m)
-                except :
-                    open("log.txt","a").write("=============fit delta failed"+"\n")
-                    open("log.txt","a").write(str(m)+"\n")
+                    #print("_parseGroupMessage():")
+                    #print(exc_info())
+                    pass
+
+                if not mid:
+                    try:
+                        message,mid,sender_fbid = self._parsePersonalMessage(m)
+                    except:
+                        #print("_parsePersonalMessage():")
+                        #print(exc_info())
+                        pass
+                if not mid: # not message
+                    #print "not message"
+                    return
+
+                stickurl = ""
+                if not message:
+                    try: 
+                        stickurl = metadata['message']['attachments'][0]['url']
+
+                    except:
+                        pass
+                if mid == self.last_mid:
+                    pass
+                else:
+                    self.last_mid = mid
+                    self.on_message(mid,message,sender_fbid,thread_id,self._parseTimeInMessage(m), stickurl)
             elif m['type'] in ['typ']:
                 try:
                     fbid =  m["from"]
@@ -439,8 +521,8 @@ class Client(object):
                 try:
                     author = m['author']
                     reader = m['reader']
-                    time   = m['time']
-                    self.on_read(author, reader, time)
+                    msgtime = m['time']
+                    self.on_read(author, reader, msgtime)
                 except:
                     open("log.txt","a").write(str(m)+"\n")
             elif m['type'] in ['notification_json']:
@@ -474,14 +556,15 @@ class Client(object):
             except requests.exceptions.Timeout:
               pass
 
-    def on_message(self, mid, author_id, author_name, message, metadata):
-        self.markAsDelivered(author_id, mid)
-        self.markAsRead(author_id)
+    def on_message(self,mid, message, author_id, thread_id, timestamp, stickurl):
+        tid = thread_id or author_id
+        self.markAsDelivered(tid, mid)
+        self.markAsRead(tid)
 
     def on_typing(self, author_id):
         pass
 
-    def on_read(self, author, reader, time):
+    def on_read(self, author, reader, msgtime):
         pass
     def on_notify(self, text, metadata):
         pass

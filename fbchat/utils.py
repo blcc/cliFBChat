@@ -1,6 +1,6 @@
 import re
 import json
-from time import time
+import time
 from random import random
 USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_2) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/42.0.2311.90 Safari/537.36",
@@ -12,7 +12,7 @@ USER_AGENTS = [
 ]
 
 def now():
-    return int(time()*1000)
+    return int(time.time()*1000)
 
 def get_json(text):
     #b  =re.sub(r"^[^{]*", '', text.encode('utf-8').decode("unicode-escape"), 1) 

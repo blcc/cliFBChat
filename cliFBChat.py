@@ -27,84 +27,35 @@ class myfb(fbchat.Client):
     last_tid = ''
     last_tname = ''
     last_isgroup = False
-    roster = dict()
     last_mid = ""
-    def on_message(self,mid, author_id, author_name, imessage, metadata):
-        if author_id == self.uid : self.roster[author_id] = 'me'
-        if mid == self.last_mid: return ## do not print duplicate message.
-        self.last_mid = mid
-        print author_name.isdigit()
-        if author_name.isdigit() and author_name in self.roster.keys():
-            author_name = self.roster[author_id]
-
-        self.markAsDelivered(author_id, mid)
-        self.markAsRead(author_id)
-        open("msg.txt","a").write(str(metadata)+"\n")
-        #print("set last_tid = "+mid)
-        ## sometimes message will return with wrong code...
-        ##                   in each character......
+    name_color = "yellow"
+    thread_color = "green"
+    time_color = "blue"
+    def on_message(self,mid, imessage, author_id, thread_id, timestamp, stickurl):
+        tid = thread_id or author_id
+        self.markAsDelivered(tid, mid)
+        self.markAsRead(tid)
+        
+        #open("msg.txt","a").write(str(metadata)+"\n")
         message = try_bad_encode_to_unicode(imessage)
 
         ## group chat use another kind of json.
-        try:   ## if group chat
-            if 'messaging' ==  metadata['type']:
-                fbid = metadata['message']['thread_fbid']
-                self.last_tid = fbid
-                self.last_tname = metadata['message']['group_thread_info']['name']
-                self.last_isgroup = True
-                sender_fbid = metadata['message']['sender_fbid']
-                sender_name = metadata['message']['sender_name']
-                self.roster[fbid] = self.last_tname
-                self.roster[sender_fbid] = sender_name
-            if 'delta' ==  metadata['type']:
-                fbid = metadata['delta']['messageMetadata']['threadKey']['threadFbId']
-                self.last_tid = fbid
-                sender_fbid = metadata['delta']['messageMetadata']['actorFbId']
-                if fbid in self.roster.keys(): 
-                    self.last_tname = self.roster[fbid]
-                    sender_name = self.roster[fbid]
-                else:
-                    self.last_tname = fbid
-                    sender_name = fbid
-                self.last_isgroup = True
-        except: ## if personal chat
-            #print(exc_info())
-            if not author_id == self.uid and author_id:
-                self.last_tid = author_id
-                self.last_tname = author_name
-                self.last_isgroup = False
-        try:   ## add time msg time
-            if 'message' in metadata.keys(): ## full msg json
-                msgtime = metadata['message']['timestamp']
-            else:                            ## delta msg
-                msgtime = metadata['delta']['messageMetadata']['timestamp']
+        sender_name = colored(self._roster(author_id),self.name_color)
+        thread_name = colored(self._roster(thread_id),self.thread_color)
+        msgtime = colored('['+timestamp+']',self.time_color)
+        if author_id != self.uid or thread_id:
+            self.last_tid = thread_id or author_id
+            self.last_tname = self._roster(self.last_tid)
+            self.last_isgroup = False
+            if thread_id :self.last_isgroup = True
+        if stickurl and not message:  ## for 貼圖
+            message = colored("送出貼圖","cyan")
 
-            msgtime = int(msgtime)/1000
-            timestamp = time.strftime("%H:%M",time.localtime(msgtime))
-            timestamp  = "%s"%(colored('['+timestamp+']','blue'))
-        except:
-            print("add timestamp failed")
-            timestamp = u'' ## avoid error...
-            print(exc_info())
-        if not message:  ## for 貼圖
-            try:
-                url = metadata['message']['attachments'][0]['url']
-                message = u":"
-                if self.last_isgroup :
-                    print("%s%s in %s %s"%(colored(timestamp,'blue'),colored(author_name,'green'),colored(author_name,"yellow"),colored(url,"cyan")))
-                else:
-                    print("%s%s%s %s"%(colored(timestamp,'blue'),colored(author_name,'green'),message,colored(url,"cyan")))
-            except:
-                print(exc_info())
-                pass
+        if thread_id :
+            tt = "%s%s in %s: %s"%(msgtime,sender_name,thread_name,message)
         else:
-            if self.last_isgroup :
-                tt = "%s%s in %s: %s"%(colored(timestamp,'blue'),colored(author_name,'green')
-                    ,colored(sender_name,"yellow"),message)
-                print(tt)
-            else:
-                tt = "%s%s: %s"%(colored(timestamp,'blue'),colored(author_name,'green'),message)
-                print(tt)
+            tt = "%s%s: %s"%(msgtime,sender_name,message)
+        print(tt)
 
     def on_notify(self,text,metadata):
         print(colored(re.sub("\n",'',text),"cyan"))
@@ -157,13 +108,14 @@ def do_cmd(a,fbid,fbname,c):
                 print(colored("/history [number]",'red'))
                 return
         threads = c.getThreadList(0,end=i)
-        for t in threads: 
-            if not t.name: t.name = t.other_user_name
-        for t in threads: t.uid = t.thread_fbid
-        for t in threads: t.isgroup = not t.is_canonical
-        nthreads = len(threads)
-        c.last_users = threads
+        
         if threads:
+            for t in threads: 
+                if not t.name: t.name = t.other_user_name
+            for t in threads: t.uid = t.thread_fbid
+            for t in threads: t.isgroup = not t.is_canonical
+            nthreads = len(threads)
+            c.last_users = threads
             for i in range(nthreads):
                 print("  %s : %s "%
                     (i,colored(threads[i].name,'yellow')))
@@ -189,6 +141,8 @@ def do_cmd(a,fbid,fbname,c):
         print("")
         print("")
         return
+    if re.match("^\/",a):
+        print("%s"%(colored("Want to use command? ","red")))
         
     if fbid and a:
         print(colored("[%s] send %s to %s "%(('ok' if c.send(fbid,a) else 'failed'),a,fbname),"blue"))
@@ -199,8 +153,8 @@ def do_cmd(a,fbid,fbname,c):
         return
 
     if not a:
-        print("say something to %s ? %s"%(colored(fbname,"yellow"),
-            colored(fbid,"blue")))
+        print("say something to %s ? %s %s"%(colored(fbname,"yellow"),
+            colored(fbid,"blue"),colored(str(c.last_isgroup),"blue")))
         return
 
 if __name__ == '__main__':
