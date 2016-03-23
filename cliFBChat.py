@@ -43,7 +43,7 @@ class myfb(fbchat.Client):
         sender_name = colored(self._roster(author_id),self.name_color)
         thread_name = colored(self._roster(thread_id),self.thread_color)
         msgtime = colored('['+timestamp+']',self.time_color)
-        if author_id != self.uid or thread_id:
+        if thread_id or author_id != self.uid :
             self.last_tid = thread_id or author_id
             self.last_tname = self._roster(self.last_tid)
             self.last_isgroup = False
@@ -61,6 +61,7 @@ class myfb(fbchat.Client):
         print(colored(re.sub("\n",'',text),"cyan"))
         
 def do_cmd(a,fbid,fbname,c):
+    if fbname.isdigit(): fbname = c._roster(fbid)
     if re.match("^\/whois ",a):
         users = c.getUsers(a[7:])
         for u in users: u.isgroup = False
@@ -71,7 +72,6 @@ def do_cmd(a,fbid,fbname,c):
                 print("  %s : %s %s"%
                     (i,colored(users[i].name,'cyan')
                     ,colored(re.sub("www\.","m.",users[i].url),'blue')))
-                c.roster[users[i].uid] = users[i].name
             print(colored("/talkto [number]",'red'))
         else:
             print(colored("Find no user",'red'))
@@ -119,7 +119,6 @@ def do_cmd(a,fbid,fbname,c):
             for i in range(nthreads):
                 print("  %s : %s "%
                     (i,colored(threads[i].name,'yellow')))
-                c.roster[threads[i].uid] = threads[i].name
             #print("use /talkto [number]  ")
             print(colored("use /talkto [number] ",'red'))
         else:
@@ -127,9 +126,9 @@ def do_cmd(a,fbid,fbname,c):
         return
     if re.match("^\/roster",a):
         for i in c.roster.keys():
-            print("%s : %s"%
+            print("%s : %s %s"%
                 (colored(c.roster[i],'yellow')
-                  ,colored(i,'cyan') ))
+                  ,colored(i,'cyan'),type(i) ))
         return
     if re.match("^\/clear",a):
         print("")
@@ -154,8 +153,8 @@ def do_cmd(a,fbid,fbname,c):
         return
 
     if not a:
-        print("say something to %s ? %s %s"%(colored(fbname,"yellow"),
-            colored(fbid,"blue"),colored(str(c.last_isgroup),"blue")))
+        print("say something to %s ?" %(colored(fbname,"yellow")))
+            #,colored(fbid,"blue"))),colored(str(c.last_isgroup),"blue")))
         return
 
 if __name__ == '__main__':

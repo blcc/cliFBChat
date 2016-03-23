@@ -120,10 +120,13 @@ class Client(object):
         self.req_counter+=1
         return self._session.post(url, headers=self._header, data=query, timeout=timeout)
 
-    def _roster(self,fbid):
+    def _roster(self,fbid,name=''):
         try:
-            name = self.roster[fbid]
-            return name
+            if name and fbid:
+                self.roster[int(fbid)] = name
+            elif fbid:
+                name = self.roster[int(fbid)]
+                return name
         except:
             return fbid
     def login(self):
@@ -142,7 +145,7 @@ class Client(object):
             self.client_id = hex(int(random()*2147483648))[2:]
             self.start_time = now()
             self.uid = int(self._session.cookies['c_user'])
-            self.roster[str(self.uid)] = 'me'
+            self._roster(self.uid,'me')
             self.user_channel = "p_" + str(self.uid)
             self.ttstamp = ''
 
@@ -201,7 +204,7 @@ class Client(object):
         for entry in j['payload']['entries']:
             if entry['type'] == 'user':
                 users.append(User(entry))
-                self.roster[entry['uid']] = entry['text']
+                self._roster(entry['uid'],entry['text'])
 
         return users # have bug TypeError: __repr__ returned non-string (type bytes)
 
@@ -311,6 +314,8 @@ class Client(object):
         try:
             for participant in j['payload']['participants']:
                 participants[participant["fbid"]] = participant["name"]
+                ## include other_user_name in self.roster
+                self._roster(participant["fbid"],participant["name"])
         except Exception as e:
           print(j)
           return None
@@ -325,8 +330,7 @@ class Client(object):
                     thread["other_user_name"] = ""
                 if not thread['name'] and thread["thread_fbid"] in participants.keys(): thread['name'] = participants[thread["thread_fbid"]]
                 t = Thread(**thread)
-                self.roster[thread["thread_fbid"]] = thread['name']
-                ## not done: include other_user_name in self.roster
+                self._roster(thread["thread_fbid"],thread['name'])
                 self.threads.append(t)
 
         return self.threads
@@ -435,17 +439,17 @@ class Client(object):
             sender_fbid = metadata['delta']['messageMetadata']['actorFbId']
             thread_name = thread_fbid
             sender_name = sender_fbid
-            if fbid in self.roster.keys(): self.last_tname = self.roster[fbid]
-            if sender_fbid in self.roster.keys(): sender_name = self.roster[fbid]
+            if thread_fbid in self.roster.keys(): self.last_tname = self._roster(thread_fbid)
+            if sender_fbid in self.roster.keys(): sender_name = self._roster(fbid)
         elif 'messaging' ==  metadata['type']:
             thread_fbid = metadata['message']['thread_fbid']
             message=metadata['message']['body']
-            mid = m['message']['mid']
+            mid = metadata['message']['mid']
             thread_name = metadata['message']['group_thread_info']['name']
             sender_fbid = metadata['message']['sender_fbid']
             sender_name = metadata['message']['sender_name']
-            self.roster[thread_fbid] = thread_name
-            self.roster[sender_fbid] = sender_name
+            self._roster(thread_fbid,thread_name)
+            self._roster(sender_fbid,sender_name)
         #print("_parsePersonalMessage(): get "+message)
         #print(mid)
         return message,mid,thread_fbid,sender_fbid
@@ -461,7 +465,7 @@ class Client(object):
             message=metadata['message']['body']
             fbid =  metadata['message']['sender_fbid']
             name =  metadata['message']['sender_name']
-            self.roster[fbid] = name
+            self._roster(fbid,name)
         #print("_parsePersonalMessage(): get "+message)
         #print(mid)
         return message,mid,fbid
