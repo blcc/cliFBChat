@@ -131,22 +131,7 @@ def do_cmd(a,fbid,fbname,c):
                   ,colored(i,'cyan') ))
         return
     if re.match("^\/clear",a):
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
-        print("")
+        print(chr(27) + "[2J")
         return
     if re.match("^\/",a):
         print("%s"%(colored("Want to use command? ","red")))
