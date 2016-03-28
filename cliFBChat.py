@@ -43,7 +43,7 @@ class myfb(fbchat.Client):
         sender_name = colored(self._roster(author_id),self.name_color)
         thread_name = colored(self._roster(thread_id),self.thread_color)
         msgtime = colored('['+timestamp+']',self.time_color)
-        if thread_id or author_id != self.uid :
+        if thread_id or str(author_id) != str(self.uid) :
             self.last_tid = thread_id or author_id
             self.last_tname = self._roster(self.last_tid)
             self.last_isgroup = False
@@ -126,11 +126,19 @@ def do_cmd(a,fbid,fbname,c):
         return
     if re.match("^\/roster",a):
         for i in c.roster.keys():
-            print("%s : %s %s"%
+            print("%s : %s "%
                 (colored(c.roster[i],'yellow')
-                  ,colored(i,'cyan'),type(i) ))
+                  ,colored(i,'cyan') ))
         return
     if re.match("^\/clear",a):
+        print("")
+        print("")
+        print("")
+        print("")
+        print("")
+        print("")
+        print("")
+        print("")
         print("")
         print("")
         print("")
