@@ -70,6 +70,8 @@ Occasional encoding error.
 
 Lost message when mass chatting.
 
+Sending message return 500
+
 Author
 =======
 blc
