@@ -72,6 +72,8 @@ Lost message when mass chatting.
 
 Sending message return 500
 
+StickyURL failed ('Name or service not known'), so this app can not run right now.
+
 Author
 =======
 blc
