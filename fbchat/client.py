@@ -154,11 +154,11 @@ class Client(object):
             self.fb_dtsg = soup.find("input", {'name':'fb_dtsg'})['value']
             self._setttstamp()
             # Set default payload
-            self.payloadDefault['__rev']= int(r.text.split('"revision":',1)[1].split(",",1)[0])
-            self.payloadDefault['__user']= self.uid
-            self.payloadDefault['__a']= '1'
-            self.payloadDefault['ttstamp']= self.ttstamp
-            self.payloadDefault['fb_dtsg']= self.fb_dtsg
+            self.payloadDefault['__rev'] = int(r.text.split('"revision":',1)[1].split(",",1)[0])
+            self.payloadDefault['__user'] = self.uid
+            self.payloadDefault['__a'] = '1'
+            self.payloadDefault['ttstamp'] = self.ttstamp
+            self.payloadDefault['fb_dtsg'] = self.fb_dtsg
 
             self.form = {
                 'channel' : self.user_channel,
@@ -223,8 +223,8 @@ class Client(object):
             'client' : self.client,
             'message_batch[0][action_type]' : 'ma-type:user-generated-message',
             'message_batch[0][author]' : 'fbid:' + str(self.uid),
-            #'message_batch[0][specific_to_list][0]' : 'fbid:' + str(thread_id),
-            #'message_batch[0][specific_to_list][1]' : 'fbid:' + str(self.uid),
+            'message_batch[0][specific_to_list][0]' : 'fbid:' + str(thread_id),
+            'message_batch[0][specific_to_list][1]' : 'fbid:' + str(self.uid),
             'message_batch[0][timestamp]' : timestamp,
             'message_batch[0][timestamp_absolute]' : 'Today',
             'message_batch[0][timestamp_relative]' : str(date.hour) + ":" + str(date.minute).zfill(2),
@@ -242,12 +242,10 @@ class Client(object):
             'message_batch[0][status]' : '0',
             'message_batch[0][message_id]' : generateMessageID(self.client_id),
             'message_batch[0][manual_retry_cnt]' : '0',
-            'message_batch[0][thread_fbid]' : thread_id,
-            'message_batch[0][has_attachment]' : False
+            'message_batch[0][thread_fbid]' : None,
+            'message_batch[0][has_attachment]' : False,
+            'message_batch[0][other_user_fbid]' : thread_id
         }
-        if not self.last_isgroup:
-            data['message_batch[0][specific_to_list][0]'] = 'fbid:' + str(thread_id)
-            data['message_batch[0][specific_to_list][1]'] = 'fbid:' + str(self.uid)
         if like:
             try:
                 sticker = LIKES[like.lower()]
@@ -256,6 +254,7 @@ class Client(object):
                 sticker = LIKES['l']
             data["message_batch[0][sticker_id]"] = sticker
             
+        open("send_data.txt","a").write(str(data)+"\n")
         r = self._post(SendURL, data)
         return r.ok
 
