@@ -133,6 +133,9 @@ def do_cmd(a,fbid,fbname,c):
     if re.match("^\/clear",a):
         print(chr(27) + "[2J")
         return
+    if re.match("^\/cls",a):
+        print(chr(27) + "[2J")
+        return
     if re.match("^\/",a):
         print("%s"%(colored("Want to use command? ","red")))
         return

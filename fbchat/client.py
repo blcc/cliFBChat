@@ -223,8 +223,8 @@ class Client(object):
             'client' : self.client,
             'message_batch[0][action_type]' : 'ma-type:user-generated-message',
             'message_batch[0][author]' : 'fbid:' + str(self.uid),
-            'message_batch[0][specific_to_list][0]' : 'fbid:' + str(thread_id),
-            'message_batch[0][specific_to_list][1]' : 'fbid:' + str(self.uid),
+            #'message_batch[0][specific_to_list][0]' : 'fbid:' + str(thread_id),
+            #'message_batch[0][specific_to_list][1]' : 'fbid:' + str(self.uid),
             'message_batch[0][timestamp]' : timestamp,
             'message_batch[0][timestamp_absolute]' : 'Today',
             'message_batch[0][timestamp_relative]' : str(date.hour) + ":" + str(date.minute).zfill(2),
@@ -244,8 +244,15 @@ class Client(object):
             'message_batch[0][manual_retry_cnt]' : '0',
             'message_batch[0][thread_fbid]' : None,
             'message_batch[0][has_attachment]' : False,
-            'message_batch[0][other_user_fbid]' : thread_id
         }
+        if self.last_isgroup:
+            data['message_batch[0][thread_fbid]'] = thread_id
+        else:
+            data['message_batch[0][other_user_fbid]'] = thread_id
+            data['message_batch[0][specific_to_list][0]'] = 'fbid:' + str(thread_id)
+            data['message_batch[0][specific_to_list][1]'] = 'fbid:' + str(self.uid)
+            
+            
         if like:
             try:
                 sticker = LIKES[like.lower()]
