@@ -68,6 +68,7 @@ class Client(object):
         self.listening = False
         self.roster = dict()
         self.mid = ''
+        self.roster = json.loads(open("fbroster.txt","rb").read())
 
         if not user_agent:
             user_agent = choice(USER_AGENTS)
@@ -124,11 +125,15 @@ class Client(object):
         try:
             if name and fbid:
                 self.roster[int(fbid)] = name
+                self._save_roster()
             elif fbid:
                 name = self.roster[int(fbid)]
                 return name
         except:
             return fbid
+    def _save_roster(self):
+        open("fbroster.txt","wb").write(json.dumps(self.roster))
+
     def login(self):
         if not (self.email and self.password):
             raise Exception("id and password or config is needed")
