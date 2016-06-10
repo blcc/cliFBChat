@@ -68,7 +68,10 @@ class Client(object):
         self.listening = False
         self.roster = dict()
         self.mid = ''
-        self.roster = json.loads(open("fbroster.txt","rb").read())
+        try
+            self.roster = json.loads(open("fbroster.txt","rb").read())
+        except:
+            pass
 
         if not user_agent:
             user_agent = choice(USER_AGENTS)
