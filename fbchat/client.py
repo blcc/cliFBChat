@@ -68,7 +68,7 @@ class Client(object):
         self.listening = False
         self.roster = dict()
         self.mid = ''
-        try
+        try:
             self.roster = json.loads(open("fbroster.txt","rb").read())
         except:
             pass
