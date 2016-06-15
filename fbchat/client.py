@@ -71,6 +71,7 @@ class Client(object):
         try:
             self.roster = json.loads(open("fbroster.txt","rb").read())
         except:
+            print("roster load failed...")
             pass
 
         if not user_agent:
@@ -434,19 +435,21 @@ class Client(object):
         self.seq = j.get('seq', '0')
         return j
 
+    def _parseTime(self,msgtime):
+        msgtime = int(msgtime)/1000
+        timestamp = time.strftime("%H:%M",time.localtime(msgtime))
+        return timestamp
     def _parseTimeInMessage(self,metadata):
         if 'message' in metadata.keys(): ## full msg json
             msgtime = metadata['message']['timestamp']
         else:                            ## delta msg
             msgtime = metadata['delta']['messageMetadata']['timestamp']
 
-        msgtime = int(msgtime)/1000
-        timestamp = time.strftime("%H:%M",time.localtime(msgtime))
-        return timestamp
+        return self._parseTime(msgtime)
 
+    ''' for testing new _parseMessage() code
     def _parseGroupMessage(self,metadata):
-        #print("_parseGroupMessage(): parsing msg")
-        if 'delta' ==  metadata['type']:
+        if 'delta' in  metadata['type']:
             thread_fbid = metadata['delta']['messageMetadata']['threadKey']['threadFbId']
             message=metadata['delta']['body']
             mid = metadata['delta']['messageMetadata']['messageId']
@@ -455,7 +458,7 @@ class Client(object):
             sender_name = sender_fbid
             if thread_fbid in self.roster.keys(): self.last_tname = self._roster(thread_fbid)
             if sender_fbid in self.roster.keys(): sender_name = self._roster(fbid)
-        elif 'messaging' ==  metadata['type']:
+        elif 'messaging' in  metadata['type']:
             thread_fbid = metadata['message']['thread_fbid']
             message=metadata['message']['body']
             mid = metadata['message']['mid']
@@ -469,29 +472,36 @@ class Client(object):
         return message,mid,thread_fbid,sender_fbid
         
     def _parsePersonalMessage(self,metadata):
-        #print("_parsePersonalMessage(): parsing msg")
         if metadata['type'] in ['delta']:
             mid =   metadata['delta']['messageMetadata']['messageId']
-            message=metadata['delta']['body']
             fbid =  metadata['delta']['messageMetadata']['actorFbId']
+            if 'body' in metadata['delta'].keys():
+                message = metadata['delta']['body']
+            else:
+                print("get sticker")
+                message = ['delta']['attachments'][0]['mercury']['url']
         elif metadata['type'] in ['m_messaging', 'messaging']:
             mid =   metadata['message']['mid']
             message=metadata['message']['body']
-            fbid =  metadata['message']['sender_fbid']
-            name =  metadata['message']['sender_name']
-            self._roster(fbid,name)
+            if 'sender_fbid' in metadata['message'].keys():
+                fbid =  metadata['message']['sender_fbid']
+            else:
+                fbid =  metadata['message']['threadKey']['otherUserFbId']
+            if 'sender_name' in metadata['message'].keys():
+                name =  metadata['message']['sender_name']
+                self._roster(fbid,name)
         #print("_parsePersonalMessage(): get "+message)
         #print(mid)
         return message,mid,fbid
 
     def _isDeltaMsg(self,m):
-        if m['type'] in ['delta'] and 'body' in m['delta'].keys(): return True
+        if m['type'] in ['delta'] : return True
         return False
     def _parseMessage(self, content):
-        '''
+        ' ''
         Get message and author name from content.
         May contains multiple messages in the content.
-        '''
+        ' ''
         if 'ms' not in content:
             return
         for m in content['ms']:
@@ -502,16 +512,18 @@ class Client(object):
                 try:
                     message,mid,thread_id,sender_fbid =  self._parseGroupMessage(m)
                 except:
-                    #print("_parseGroupMessage():")
-                    #print(exc_info())
+                    print("_parseGroupMessage():")
+                    print(exc_info())
+                    print(m)
                     pass
 
                 if not mid:
                     try:
                         message,mid,sender_fbid = self._parsePersonalMessage(m)
                     except:
-                        #print("_parsePersonalMessage():")
-                        #print(exc_info())
+                        print("_parsePersonalMessage():")
+                        print(exc_info())
+                        print(m)
                         pass
                 if not mid: # not message
                     #print "not message"
@@ -537,10 +549,10 @@ class Client(object):
                     open("log.txt","a").write(str(m)+"\n")
             elif m['type'] in ['m_read_receipt']:
                 try:
-                    author = m['author']
+                    # no author include in json # author = m['author']
                     reader = m['reader']
                     msgtime = m['time']
-                    self.on_read(author, reader, msgtime)
+                    self.on_read(reader, self._parseTime(msgtime),m)
                 except:
                     open("log.txt","a").write(str(m)+"\n")
             elif m['type'] in ['notification_json']:
@@ -553,6 +565,107 @@ class Client(object):
                     self.on_notify(u'someone gives you a like',m)
             else:
               open("log.txt","a").write(str(m)+"\n")
+    '''
+
+    def _parse_pass(self,m):
+        pass
+    def _parse_delta_ReadReceipt(self,m):
+        '''actionTimestampMs,irisSeqId,threadKey[otherUserFbId],watermarkTimestampMs'''
+        try:
+            readerid = m['delta']['threadKey']['otherUserFbId']
+            msgtime = m['delta']['actionTimestampMs']
+            self.on_read(readerid, self._parseTime(msgtime),m)
+        except :
+            open("read_receipt_err.log","a").write(str(m)+"\n")
+            self.on_notify(u'someone read something ReadReceipt',m)
+
+    def _parse_delta_NewMessage(self,m):
+        '''attachments,body,irisSeqId,messageMetadata[actorFbId,messageId,offlineThreadingId,tags],threadKey[otherUserFbId(personal) or threadFbId(group)],timestamp'''
+
+        mid =         m['delta']['messageMetadata']['messageId']
+        author_id = m['delta']['messageMetadata']['actorFbId'] 
+        timestamp = self._parseTime(m['delta']['timestamp'])
+
+        ## get group chat id or sender id
+        thread_id = m['delta']['messageMetadata']['threadKey'].get('threadFbId') or m['delta']['messageMetadata']['threadKey'].get('otherUserFbId')
+
+        ## get message or sticker
+        message =  m['delta'].get('body') or m['delta']['attachments'][0].get('url')
+
+        self.on_message(mid, message, author_id, thread_id, timestamp)
+
+    def _parse_delta(self,m):
+        '''delta may be many things, action by class '''
+        adic = dict()
+        adic['ReadReceipt'] = self._parse_delta_ReadReceipt
+        adic['NewMessage']  = self._parse_delta_NewMessage
+        adic['NoOp'] = self._parse_pass
+        adic['DeliveryReceipt'] = self._parse_pass
+        adic['MarkUnread'] = self._parse_pass
+        adic['MarkRead'] = self._parse_pass
+
+        adic[m['delta']['class']](m)
+
+    def _parse_messaging(self,m):
+        '''event: "read" or "read_receipt" '''
+        try:
+            author = m['author']
+            reader = m['reader']
+            msgtime = m['time']
+            self.on_read(reader, self._parseTime(msgtime),m)
+        except :
+            open("read_receipt_err.log","a").write(str(m)+"\n")
+            self.on_notify(u'someone read something read_receipt',m)
+
+    def _parse_notification_json(self,m):
+        try:
+            likemsg = m['nodes'][0]['unaggregatedTitle']['text']
+            self.on_notify(likemsg,m)
+        except :
+            open("notification_err.log","a").write(str(m)+"\n")
+            self.on_notify(u'someone gives you a like',m)
+    def _parse_typ(self,m):
+        ''' typing '''
+        pass
+    #def _parseMessage_action_dic(self,content):
+    def _parseMessage(self,content):
+        ''' action by type '''
+        adic = dict()
+        adic['delta'] = self._parse_delta
+        adic['messaging'] = self._parse_messaging
+        adic['inbox'] = self._parse_pass
+        adic['typ'] = self._parse_typ
+        adic['notification_json'] = self._parse_notification_json
+        ''' not sure what are those '''
+        adic['deltaflowreject'] = self._parse_pass
+        adic['qprimer'] = self._parse_pass
+        adic['app_request_create'] = self._parse_pass
+        adic['close_friend_activity'] = self._parse_pass
+        adic['deltaflow'] = self._parse_pass
+        adic['feed_comment_reply'] = self._parse_pass
+        adic['group_highlights'] = self._parse_pass
+        adic['group_msgs_unseen'] = self._parse_pass
+        adic['m_live_ufi'] = self._parse_pass
+        adic['nav_update_counts'] = self._parse_pass
+        adic['notification'] = self._parse_pass
+        adic['notifications_read'] = self._parse_pass
+        adic['notifications_seen'] = self._parse_pass
+        adic['notifications_sync'] = self._parse_pass
+        adic['share_reply'] = self._parse_pass
+        adic['sticker'] = self._parse_pass
+        adic['user'] = self._parse_pass
+
+        if 'ms' not in content:
+            return
+        for m in content['ms']:
+            try:
+                adic[m['type']](m)
+            except:
+                f = open("parse.log","a")
+                f.write(str(m)+"\n")
+                f.write(str(exc_info())+"\n")
+                f.write(str("------------------")+"\n")
+                f.close()
 
     def listen(self, markAlive=True):
         self.listening = True
@@ -582,7 +695,7 @@ class Client(object):
     def on_typing(self, author_id):
         pass
 
-    def on_read(self, author, reader, msgtime):
+    def on_read(self, reader, timestamp,m={}):
         pass
     def on_notify(self, text, metadata):
         pass
