@@ -40,8 +40,8 @@ class myfb(fbchat.Client):
         message = try_bad_encode_to_unicode(imessage)
 
         ## group chat use another kind of json.
-        sender_name = colored(self._roster(author_id),self.name_color)
-        thread_name = colored(self._roster(thread_id),self.thread_color)
+        sender_name = colored(self._roster(str(author_id)),self.name_color)
+        thread_name = colored(self._roster(str(thread_id)),self.thread_color)
         msgtime = colored('['+timestamp+']',self.time_color)
         if thread_id or str(author_id) != str(self.uid) :
             self.last_tid = thread_id or author_id

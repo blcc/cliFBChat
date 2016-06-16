@@ -95,6 +95,12 @@ class Client(object):
     def _console(self, msg):
         if self.debug: print(msg)
 
+    def _output_errlog(self,fn,txt1,txt2):
+        f = open(fn,"a")
+        f.write(txt1+"\n")
+        f.write(txt2+"\n")
+        f.write(str("------------------")+"\n")
+        f.close()
     def _setttstamp(self):
         for i in self.fb_dtsg:
             self.ttstamp += str(ord(i))
@@ -128,10 +134,10 @@ class Client(object):
     def _roster(self,fbid,name=''):
         try:
             if name and fbid:
-                self.roster[int(fbid)] = name
+                self.roster[str(fbid)] = name
                 self._save_roster()
             elif fbid:
-                name = self.roster[int(fbid)]
+                name = self.roster[str(fbid)]
                 return name
         except:
             return fbid
@@ -447,7 +453,7 @@ class Client(object):
 
         return self._parseTime(msgtime)
 
-    ''' for testing new _parseMessage() code
+    """ for testing new _parseMessage() code
     def _parseGroupMessage(self,metadata):
         if 'delta' in  metadata['type']:
             thread_fbid = metadata['delta']['messageMetadata']['threadKey']['threadFbId']
@@ -498,10 +504,10 @@ class Client(object):
         if m['type'] in ['delta'] : return True
         return False
     def _parseMessage(self, content):
-        ' ''
+        '''
         Get message and author name from content.
         May contains multiple messages in the content.
-        ' ''
+        '''
         if 'ms' not in content:
             return
         for m in content['ms']:
@@ -546,7 +552,7 @@ class Client(object):
                     fbid =  m["from"]
                     self.on_typing(fbid)
                 except:
-                    open("log.txt","a").write(str(m)+"\n")
+                    self._output_errlog('log.txt',str(m),str(exc_info()))
             elif m['type'] in ['m_read_receipt']:
                 try:
                     # no author include in json # author = m['author']
@@ -554,18 +560,18 @@ class Client(object):
                     msgtime = m['time']
                     self.on_read(reader, self._parseTime(msgtime),m)
                 except:
-                    open("log.txt","a").write(str(m)+"\n")
+                    self._output_errlog('log.txt',str(m),str(exc_info()))
             elif m['type'] in ['notification_json']:
                 try:
                     likemsg = m['nodes'][0]['unaggregatedTitle']['text']
                     #likemsg = m['nodes'][0]['unaggregatedTitle']['text']
                     self.on_notify(likemsg,m)
                 except :
-                    open("like_err.log","a").write(str(m)+"\n")
+                    self._output_errlog('like_err.log',str(m),str(exc_info()))
                     self.on_notify(u'someone gives you a like',m)
             else:
-              open("log.txt","a").write(str(m)+"\n")
-    '''
+            self._output_errlog('log.txt',str(m),"")
+    """
 
     def _parse_pass(self,m):
         pass
@@ -576,7 +582,7 @@ class Client(object):
             msgtime = m['delta']['actionTimestampMs']
             self.on_read(readerid, self._parseTime(msgtime),m)
         except :
-            open("read_receipt_err.log","a").write(str(m)+"\n")
+            self._output_errlog('read_receipt_err.log',str(m),str(exc_info()))
             self.on_notify(u'someone read something ReadReceipt',m)
 
     def _parse_delta_NewMessage(self,m):
@@ -584,15 +590,15 @@ class Client(object):
 
         mid =         m['delta']['messageMetadata']['messageId']
         author_id = m['delta']['messageMetadata']['actorFbId'] 
-        timestamp = self._parseTime(m['delta']['timestamp'])
+        timestamp = self._parseTime(m['delta']['messageMetadata']['timestamp'])
 
         ## get group chat id or sender id
-        thread_id = m['delta']['messageMetadata']['threadKey'].get('threadFbId') or m['delta']['messageMetadata']['threadKey'].get('otherUserFbId')
+        thread_id = m['delta']['messageMetadata']['threadKey'].get('threadFbId') #or m['delta']['messageMetadata']['threadKey'].get('otherUserFbId')
 
         ## get message or sticker
         message =  m['delta'].get('body') or m['delta']['attachments'][0].get('url')
 
-        self.on_message(mid, message, author_id, thread_id, timestamp)
+        self.on_message(mid, message, author_id, thread_id, timestamp,"")
 
     def _parse_delta(self,m):
         '''delta may be many things, action by class '''
@@ -609,12 +615,11 @@ class Client(object):
     def _parse_messaging(self,m):
         '''event: "read" or "read_receipt" '''
         try:
-            author = m['author']
             reader = m['reader']
             msgtime = m['time']
             self.on_read(reader, self._parseTime(msgtime),m)
         except :
-            open("read_receipt_err.log","a").write(str(m)+"\n")
+            self._output_errlog('read_receipt_err.log',str(m),str(exc_info()))
             self.on_notify(u'someone read something read_receipt',m)
 
     def _parse_notification_json(self,m):
@@ -622,7 +627,7 @@ class Client(object):
             likemsg = m['nodes'][0]['unaggregatedTitle']['text']
             self.on_notify(likemsg,m)
         except :
-            open("notification_err.log","a").write(str(m)+"\n")
+            self._output_errlog('like_err.log',str(m),str(exc_info()))
             self.on_notify(u'someone gives you a like',m)
     def _parse_typ(self,m):
         ''' typing '''
@@ -636,7 +641,9 @@ class Client(object):
         adic['inbox'] = self._parse_pass
         adic['typ'] = self._parse_typ
         adic['notification_json'] = self._parse_notification_json
+        adic['m_notification'] = self._parse_notification_json
         ''' not sure what are those '''
+        adic['t_tp'] = self._parse_pass # device id?
         adic['deltaflowreject'] = self._parse_pass
         adic['qprimer'] = self._parse_pass
         adic['app_request_create'] = self._parse_pass
@@ -661,11 +668,7 @@ class Client(object):
             try:
                 adic[m['type']](m)
             except:
-                f = open("parse.log","a")
-                f.write(str(m)+"\n")
-                f.write(str(exc_info())+"\n")
-                f.write(str("------------------")+"\n")
-                f.close()
+                self._output_errlog("parse.log",str(m),str(exc_info()))
 
     def listen(self, markAlive=True):
         self.listening = True
