@@ -111,12 +111,12 @@ class Client(object):
         Adds the following defaults to the payload:
           __rev, __user, __a, ttstamp, fb_dtsg, __req
         '''
-        payload=self.payloadDefault.copy()
+        payload = self.payloadDefault.copy()
         if query:
             payload.update(query)
         payload['__req'] = str_base(self.req_counter, 36)
         payload['seq'] = self.seq
-        self.req_counter+=1
+        self.req_counter += 1
         return payload
 
     def _get(self, url, query=None, timeout=30):
@@ -128,7 +128,7 @@ class Client(object):
         return self._session.post(url, headers=self._header, data=payload, timeout=timeout)
 
     def _cleanPost(self, url, query=None, timeout=30):
-        self.req_counter+=1
+        self.req_counter += 1
         return self._session.post(url, headers=self._header, data=query, timeout=timeout)
 
     def _roster(self,fbid,name=''):
@@ -194,9 +194,6 @@ class Client(object):
             return True
         else:
             return False
-
-    def listen(self):
-        pass
 
     def getUsers(self, name):
         """Find and get user by his/her name
@@ -302,7 +299,7 @@ class Client(object):
         j = get_json(r.text)
         if not j['payload']:
             return None
-        messages=[]
+        messages = []
         for message in j['payload']['actions']:
             messages.append(Message(**message))
         return list(reversed(messages))
@@ -314,7 +311,7 @@ class Client(object):
         :param end: (optional) the last index of a thread
         """
         if not end: end = start + 20
-        if end <= start: end=start+end
+        if end <= start: end = start + end
 
         timestamp = now()
         date = datetime.now()
@@ -331,7 +328,7 @@ class Client(object):
         j = get_json(r.text)
 
         # Get names for people
-        participants={}
+        participants = {}
         try:
             for participant in j['payload']['participants']:
                 participants[participant["fbid"]] = participant["name"]
@@ -342,7 +339,7 @@ class Client(object):
           return None
 
         # Prevent duplicates in self.threads
-        threadIDs=[getattr(x, "thread_id") for x in self.threads]
+        threadIDs = [getattr(x, "thread_id") for x in self.threads]
         for thread in j['payload']['threads']:
             if thread["thread_id"] not in threadIDs:
                 try:
@@ -371,19 +368,21 @@ class Client(object):
         j = get_json(r.text)
         result = {
             "message_counts": j['payload']['message_counts'],
-            "unseen_threads": j['payload']['unseen_thread_ids']}
+            "unseen_threads": j['payload']['unseen_thread_ids']
+        }
         return result
 
     def markAsDelivered(self, userID, threadID):
-        data={"message_ids[0]": threadID}
+        data = {"message_ids[0]": threadID}
         data["thread_ids[%s][0]"%userID] = threadID
         r = self._post(DeliveredURL, data)
         return r.ok
 
     def markAsRead(self, userID):
-        data={
+        data = {
             "watermarkTimestamp": now(),
-            "shouldSendReadReceipt": True}
+            "shouldSendReadReceipt": True
+        }
         data["ids[%s]"%userID] = True
         r = self._post(ReadStatusURL, data)
         return r.ok
@@ -394,7 +393,7 @@ class Client(object):
 
 
     def ping(self, sticky):
-        data={
+        data = {
             'channel': self.user_channel,
             'clientid': self.client_id,
             'partition': -2,
@@ -411,7 +410,7 @@ class Client(object):
         Call pull api to get sticky and pool parameter,
         newer api needs these parameter to work.
         '''
-        data={ "msgs_recv": 0 }
+        data = { "msgs_recv": 0 }
 
         r = self._get(StickyURL, data)
         j = get_json(r.text)
@@ -428,15 +427,15 @@ class Client(object):
         '''
         Call pull api with seq value to get message data.
         '''
-        data={
+        data = {
             "msgs_recv": 0,
-            "sticky_token":sticky,
-            "sticky_pool":pool
+            "sticky_token": sticky,
+            "sticky_pool": pool,
+            "clientid": "4afd4665" ## clientid copy paste from browser
         }
 
         r = self._get(StickyURL, data)
         j = get_json(r.text)
-        if not j: return j
 
         self.seq = j.get('seq', '0')
         return j
@@ -508,8 +507,7 @@ class Client(object):
         Get message and author name from content.
         May contains multiple messages in the content.
         '''
-        if 'ms' not in content:
-            return
+        if 'ms' not in content: return
         for m in content['ms']:
             if m['type'] in ['m_messaging', 'messaging'] or self._isDeltaMsg(m):
                 thread_id = ''
@@ -568,7 +566,7 @@ class Client(object):
                     self.on_notify(likemsg,m)
                 except :
                     self._output_errlog('like_err.log',str(m),str(exc_info()))
-                    self.on_notify(u'someone gives you a like',m)
+                    self.on_notify(u'some notification appear, see like_err.log',m)
             else:
             self._output_errlog('log.txt',str(m),"")
     """
@@ -632,7 +630,6 @@ class Client(object):
     def _parse_typ(self,m):
         ''' typing '''
         pass
-    #def _parseMessage_action_dic(self,content):
     def _parseMessage(self,content):
         ''' action by type '''
         adic = dict()
@@ -662,14 +659,22 @@ class Client(object):
         adic['sticker'] = self._parse_pass
         adic['user'] = self._parse_pass
 
+        if content.get("t") in "refresh": 
+            r = self._get(BaseURL)
+            r = self._get(MobileURL)
+            print("refreshed?")
+            print(self._session.cookies)
+            print(r.status_code)
+            #print(r.text)
+
         if 'ms' not in content:
             return
         for m in content['ms']:
             try:
                 adic[m['type']](m)
             except:
-                self._output_errlog("parse.log",str(m),str(exc_info()))
-
+                self._output_errlog("parse_failed.log",str(m),str(exc_info()))
+            
     def listen(self, markAlive=True):
         self.listening = True
         sticky, pool = self._getSticky()
