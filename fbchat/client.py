@@ -594,8 +594,7 @@ class Client(object):
         thread_id = m['delta']['messageMetadata']['threadKey'].get('threadFbId') #or m['delta']['messageMetadata']['threadKey'].get('otherUserFbId')
 
         ## get message or sticker
-        message =  m['delta'].get('body') or m['delta']['attachments'][0].get('url')
-
+        message =  m['delta'].get('body') or m['delta']['attachments'][0]['mercury'].get('url')
         self.on_message(mid, message, author_id, thread_id, timestamp,"")
 
     def _parse_delta(self,m):
