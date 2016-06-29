@@ -31,13 +31,16 @@ class myfb(fbchat.Client):
     name_color = "yellow"
     thread_color = "green"
     time_color = "blue"
-    def on_message(self,mid, imessage, author_id, thread_id, timestamp, stickurl):
+    def on_message(self,mid, imessage, author_id, thread_id, timestamp, stickurl=''):
         tid = thread_id or author_id
         self.markAsDelivered(tid, mid)
         self.markAsRead(tid)
         
         #open("msg.txt","a").write(str(metadata)+"\n")
-        message = try_bad_encode_to_unicode(imessage)
+        if imessage: 
+            message = try_bad_encode_to_unicode(imessage)
+        else:
+            message = imessage[:]
 
         ## group chat use another kind of json.
         sender_name = colored(self._roster(str(author_id)),self.name_color)
@@ -48,7 +51,7 @@ class myfb(fbchat.Client):
             self.last_tname = self._roster(self.last_tid)
             self.last_isgroup = False
             if thread_id :self.last_isgroup = True
-        if stickurl and not message:  ## for 貼圖
+        if not message:  ## for 貼圖
             message = colored("送出貼圖","cyan")
 
         if thread_id :

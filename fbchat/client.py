@@ -431,7 +431,7 @@ class Client(object):
             "msgs_recv": 0,
             "sticky_token": sticky,
             "sticky_pool": pool,
-            "clientid": "4afd4665" ## clientid copy paste from browser
+            "clientid": self.client_id ## clientid copy paste from browser
         }
 
         r = self._get(StickyURL, data)
@@ -659,13 +659,8 @@ class Client(object):
         adic['sticker'] = self._parse_pass
         adic['user'] = self._parse_pass
 
-        if content.get("t") in "refresh": 
-            r = self._get(BaseURL)
-            r = self._get(MobileURL)
-            print("refreshed?")
-            print(self._session.cookies)
-            print(r.status_code)
-            #print(r.text)
+        if "refresh" in content.get("t"): 
+            print("need refreshed?")
 
         if 'ms' not in content:
             return
