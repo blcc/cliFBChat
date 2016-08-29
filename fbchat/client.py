@@ -23,7 +23,8 @@ from .stickers import *
 # URLs
 LoginURL     ="https://m.facebook.com/login.php?login_attempt=1"
 SearchURL    ="https://www.facebook.com/ajax/typeahead/search.php"
-SendURL      ="https://www.facebook.com/ajax/mercury/send_messages.php"
+#SendURL      ="https://www.facebook.com/ajax/mercury/send_messages.php"
+SendURL      ="https://www.facebook.com/messaging/send/"
 ThreadsURL   ="https://www.facebook.com/ajax/mercury/threadlist_info.php"
 ThreadSyncURL="https://www.facebook.com/ajax/mercury/thread_sync.php"
 MessagesURL  ="https://www.facebook.com/ajax/mercury/thread_info.php"
@@ -220,51 +221,63 @@ class Client(object):
 
         return users # have bug TypeError: __repr__ returned non-string (type bytes)
 
-    def send(self, thread_id, message=None, like=None):
+    def send(self, recipient_id, message=None, message_type='user', like=None, image_id=None):
         """Send a message with given thread id
-
-        :param thread_id: a thread id that you want to send a message
+        :param recipient_id: the user id or thread id that you want to send a message to
         :param message: a text that you want to send
+        :param message_type: determines if the recipient_id is for user or thread
         :param like: size of the like sticker you want to send
+        :param image_id: id for the image to send, gotten from the UploadURL
         """
 
+        if message_type.lower() == 'group':
+            thread_id = recipient_id
+            user_id = None
+        else:
+            thread_id = None
+            user_id = recipient_id
+
+        messageAndOTID=generateOfflineThreadingID()
         timestamp = now()
         date = datetime.now()
-        ## see https://github.com/Schmavery/facebook-chat-api/blob/master/src/sendMessage.js
         data = {
-            'client' : self.client,
-            'message_batch[0][action_type]' : 'ma-type:user-generated-message',
-            'message_batch[0][author]' : 'fbid:' + str(self.uid),
-            #'message_batch[0][specific_to_list][0]' : 'fbid:' + str(thread_id),
-            #'message_batch[0][specific_to_list][1]' : 'fbid:' + str(self.uid),
-            'message_batch[0][timestamp]' : timestamp,
-            'message_batch[0][timestamp_absolute]' : 'Today',
-            'message_batch[0][timestamp_relative]' : str(date.hour) + ":" + str(date.minute).zfill(2),
-            'message_batch[0][timestamp_time_passed]' : '0',
-            'message_batch[0][is_unread]' : False,
-            'message_batch[0][is_cleared]' : False,
-            'message_batch[0][is_forward]' : False,
-            'message_batch[0][is_filtered_content]' : False,
-            'message_batch[0][is_spoof_warning]' : False,
-            'message_batch[0][source]' : 'source:chat:web',
-            'message_batch[0][source_tags][0]' : 'source:chat',
-            'message_batch[0][body]' : message,
-            'message_batch[0][html_body]' : False,
-            'message_batch[0][ui_push_phase]' : 'V3',
-            'message_batch[0][status]' : '0',
-            'message_batch[0][message_id]' : generateMessageID(self.client_id),
-            'message_batch[0][manual_retry_cnt]' : '0',
-            'message_batch[0][thread_fbid]' : None,
-            'message_batch[0][has_attachment]' : False,
+            'client': self.client,
+            'action_type' : 'ma-type:user-generated-message',
+            'author' : 'fbid:' + str(self.uid),
+            'timestamp' : timestamp,
+            'timestamp_absolute' : 'Today',
+            'timestamp_relative' : str(date.hour) + ":" + str(date.minute).zfill(2),
+            'timestamp_time_passed' : '0',
+            'is_unread' : False,
+            'is_cleared' : False,
+            'is_forward' : False,
+            'is_filtered_content' : False,
+            'is_filtered_content_bh': False,
+            'is_filtered_content_account': False,
+            'is_filtered_content_quasar': False,
+            'is_filtered_content_invalid_app': False,
+            'is_spoof_warning' : False,
+            'source' : 'source:chat:web',
+            'source_tags[0]' : 'source:chat',
+            'body' : message,
+            'html_body' : False,
+            'ui_push_phase' : 'V3',
+            'status' : '0',
+            'offline_threading_id':messageAndOTID,
+            'message_id' : messageAndOTID,
+            'threading_id':generateMessageID(self.client_id),
+            'ephemeral_ttl_mode:': '0',
+            'manual_retry_cnt' : '0',
+            'signatureID' : getSignatureID(),
+            'has_attachment' : image_id != None,
+            'other_user_fbid' : recipient_id,
+            'specific_to_list[0]' : 'fbid:' + str(recipient_id),
+            'specific_to_list[1]' : 'fbid:' + str(self.uid),            
         }
-        if self.last_isgroup:
-            data['message_batch[0][thread_fbid]'] = thread_id
-        else:
-            data['message_batch[0][other_user_fbid]'] = thread_id
-            data['message_batch[0][specific_to_list][0]'] = 'fbid:' + str(thread_id)
-            data['message_batch[0][specific_to_list][1]'] = 'fbid:' + str(self.uid)
-            
-            
+        
+        if image_id:
+            data['message_batch[0][image_ids][0]'] = image_id
+
         if like:
             try:
                 sticker = LIKES[like.lower()]
@@ -272,10 +285,10 @@ class Client(object):
                 # if user doesn't enter l or m or s, then use the large one
                 sticker = LIKES['l']
             data["message_batch[0][sticker_id]"] = sticker
-            
-        open("send_data.txt","a").write(str(data)+"\n")
+
         r = self._post(SendURL, data)
         return r.ok
+
 
     def getThreadInfo(self, userID, start, end=None):
         """Get the info of one Thread
@@ -452,131 +465,12 @@ class Client(object):
 
         return self._parseTime(msgtime)
 
-    """ for testing new _parseMessage() code
-    def _parseGroupMessage(self,metadata):
-        if 'delta' in  metadata['type']:
-            thread_fbid = metadata['delta']['messageMetadata']['threadKey']['threadFbId']
-            message=metadata['delta']['body']
-            mid = metadata['delta']['messageMetadata']['messageId']
-            sender_fbid = metadata['delta']['messageMetadata']['actorFbId']
-            thread_name = thread_fbid
-            sender_name = sender_fbid
-            if thread_fbid in self.roster.keys(): self.last_tname = self._roster(thread_fbid)
-            if sender_fbid in self.roster.keys(): sender_name = self._roster(fbid)
-        elif 'messaging' in  metadata['type']:
-            thread_fbid = metadata['message']['thread_fbid']
-            message=metadata['message']['body']
-            mid = metadata['message']['mid']
-            thread_name = metadata['message']['group_thread_info']['name']
-            sender_fbid = metadata['message']['sender_fbid']
-            sender_name = metadata['message']['sender_name']
-            self._roster(thread_fbid,thread_name)
-            self._roster(sender_fbid,sender_name)
-        #print("_parsePersonalMessage(): get "+message)
-        #print(mid)
-        return message,mid,thread_fbid,sender_fbid
-        
-    def _parsePersonalMessage(self,metadata):
-        if metadata['type'] in ['delta']:
-            mid =   metadata['delta']['messageMetadata']['messageId']
-            fbid =  metadata['delta']['messageMetadata']['actorFbId']
-            if 'body' in metadata['delta'].keys():
-                message = metadata['delta']['body']
-            else:
-                print("get sticker")
-                message = ['delta']['attachments'][0]['mercury']['url']
-        elif metadata['type'] in ['m_messaging', 'messaging']:
-            mid =   metadata['message']['mid']
-            message=metadata['message']['body']
-            if 'sender_fbid' in metadata['message'].keys():
-                fbid =  metadata['message']['sender_fbid']
-            else:
-                fbid =  metadata['message']['threadKey']['otherUserFbId']
-            if 'sender_name' in metadata['message'].keys():
-                name =  metadata['message']['sender_name']
-                self._roster(fbid,name)
-        #print("_parsePersonalMessage(): get "+message)
-        #print(mid)
-        return message,mid,fbid
-
-    def _isDeltaMsg(self,m):
-        if m['type'] in ['delta'] : return True
-        return False
-    def _parseMessage(self, content):
-        '''
-        Get message and author name from content.
-        May contains multiple messages in the content.
-        '''
-        if 'ms' not in content: return
-        for m in content['ms']:
-            if m['type'] in ['m_messaging', 'messaging'] or self._isDeltaMsg(m):
-                thread_id = ''
-                mid = ''
-                sender_fbid = ''
-                try:
-                    message,mid,thread_id,sender_fbid =  self._parseGroupMessage(m)
-                except:
-                    print("_parseGroupMessage():")
-                    print(exc_info())
-                    print(m)
-                    pass
-
-                if not mid:
-                    try:
-                        message,mid,sender_fbid = self._parsePersonalMessage(m)
-                    except:
-                        print("_parsePersonalMessage():")
-                        print(exc_info())
-                        print(m)
-                        pass
-                if not mid: # not message
-                    #print "not message"
-                    return
-
-                stickurl = ""
-                if not message:
-                    try: 
-                        stickurl = metadata['message']['attachments'][0]['url']
-
-                    except:
-                        pass
-                if mid == self.last_mid:
-                    pass
-                else:
-                    self.last_mid = mid
-                    self.on_message(mid,message,sender_fbid,thread_id,self._parseTimeInMessage(m), stickurl)
-            elif m['type'] in ['typ']:
-                try:
-                    fbid =  m["from"]
-                    self.on_typing(fbid)
-                except:
-                    self._output_errlog('log.txt',str(m),str(exc_info()))
-            elif m['type'] in ['m_read_receipt']:
-                try:
-                    # no author include in json # author = m['author']
-                    reader = m['reader']
-                    msgtime = m['time']
-                    self.on_read(reader, self._parseTime(msgtime),m)
-                except:
-                    self._output_errlog('log.txt',str(m),str(exc_info()))
-            elif m['type'] in ['notification_json']:
-                try:
-                    likemsg = m['nodes'][0]['unaggregatedTitle']['text']
-                    #likemsg = m['nodes'][0]['unaggregatedTitle']['text']
-                    self.on_notify(likemsg,m)
-                except :
-                    self._output_errlog('like_err.log',str(m),str(exc_info()))
-                    self.on_notify(u'some notification appear, see like_err.log',m)
-            else:
-            self._output_errlog('log.txt',str(m),"")
-    """
-
     def _parse_pass(self,m):
         pass
     def _parse_delta_ReadReceipt(self,m):
         '''actionTimestampMs,irisSeqId,threadKey[otherUserFbId],watermarkTimestampMs'''
         try:
-            readerid = m['delta']['threadKey']['otherUserFbId']
+            readerid = m['delta']['threadKey'].get('otherUserFbId') or m['delta'].get('actorFbId')
             msgtime = m['delta']['actionTimestampMs']
             self.on_read(readerid, self._parseTime(msgtime),m)
         except :
@@ -630,6 +524,7 @@ class Client(object):
         ''' typing '''
         pass
     def _parseMessage(self,content):
+        if not content: return
         ''' action by type '''
         adic = dict()
         adic['delta'] = self._parse_delta
@@ -657,6 +552,7 @@ class Client(object):
         adic['share_reply'] = self._parse_pass
         adic['sticker'] = self._parse_pass
         adic['user'] = self._parse_pass
+        adic['ttyp'] = self._parse_pass 
 
         if "refresh" in content.get("t"): 
             print("need refreshed?")
