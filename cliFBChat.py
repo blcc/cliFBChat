@@ -4,9 +4,15 @@ from termcolor import colored
 from threading import Thread
 from sys import exit,exc_info,stdout
 from getpass import getpass
-import time
-import re
-import os
+import time,re,os
+
+enablexmpp = 0  
+try:             ## xmpp listen
+    from xmpp import cliXMPP
+    enablexmpp = 1
+except ImportError:
+    pass
+
 
 USERNAME = ""
 PASSWD = ""
@@ -161,6 +167,17 @@ if __name__ == '__main__':
         f = open("account.txt","r")
         USERNAME =  f.readline().rstrip()
         PASSWD   =  f.readline().rstrip()
+    if enablexmpp and os.path.isfile("xmppaccount.txt"):
+        f = open("xmppaccount.txt","r")
+        xmppUSERNAME =  f.readline().rstrip()
+        xmppPASSWD   =  f.readline().rstrip()
+        xmpp = cliXMPP.xmpp_client(xmppUSERNAME, xmppPASSWD) 
+        
+        if xmpp.connect():
+            xmpp.process(threaded=True)
+            print("XMPP, listen only")
+        else:
+            print("xmpp unable to connect.")
     try:
         if not USERNAME:
             USERNAME = raw_input("FB username: ")

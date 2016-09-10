@@ -6,9 +6,11 @@ Receive and reply facebook messages with terminal.
 
 It's also print notification of facebook.
 
+And receive message from XMPP (Send function is not done yet).
+
 Powered by (modified) fbchat python lib(https://github.com/carpedm20/fbchat/).
 
-**No XMPP or API key is needed**. Just use your ID and PASSWORD.
+**No API key is needed**. Just use your ID and PASSWORD.
 
 
 Installation
@@ -17,6 +19,24 @@ Installation
 .. code-block:: console
 
     $ git clone https://github.com/blcc/cliFBChat.git
+
+
+Dependence
+-------
+fbchat
+
+termcolor
+
+sleekXMPP
+
+Setting
+--------
+
+account.txt  # optional, line 1 is FB userid, line 2 is password.
+
+xmppaccount.txt # only if using xmpp listen.
+
+
 
 Usage
 =======
@@ -63,13 +83,12 @@ Send message to user/group chat.
 
 Known issue
 =======
-Needs re-login after long time(over night) idle to send message.
-
 Occasional encoding error.
-(ex. chinese(UTF-8) name and send pure ascii message.)
+(ex. only one chinese(UTF-8) character may be interpret as latin-1)
 
 Lost message when mass chatting.
 
+Facebook often change format.
 Author
 =======
 blc
