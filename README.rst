@@ -6,7 +6,7 @@ Receive and reply facebook messages with terminal.
 
 It's also print notification of facebook.
 
-And receive message from XMPP (Send function is not done yet).
+And receive message from XMPP (Send and roster function is not apply yet).
 
 Powered by (modified) fbchat python lib(https://github.com/carpedm20/fbchat/).
 
@@ -86,9 +86,13 @@ Known issue
 Occasional encoding error.
 (ex. only one chinese(UTF-8) character may be interpret as latin-1)
 
+Occasional login error (Maybe FB check the unusual login).
+
 Lost message when mass chatting.
 
 Facebook often change format.
+
+Takes time to exit.
 Author
 =======
 blc
