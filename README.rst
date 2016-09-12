@@ -23,7 +23,7 @@ Installation
 
 Dependence
 -------
-fbchat
+fbchat (included)
 
 termcolor
 
