@@ -72,7 +72,7 @@ class Client(object):
         try:
             self.roster = json.loads(open("fbroster.txt","rb").read())
         except:
-            print("roster load failed...")
+            #print("roster load failed...")
             pass
 
         if not user_agent:

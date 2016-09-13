@@ -163,6 +163,7 @@ def do_cmd(a,fbid,fbname,c):
         return
 
 if __name__ == '__main__':
+    c = ""
     if os.path.isfile("account.txt"):
         f = open("account.txt","r")
         USERNAME =  f.readline().rstrip()
@@ -191,5 +192,13 @@ if __name__ == '__main__':
             do_cmd(a,c.last_tid,c.last_tname,c)
     except (KeyboardInterrupt,EOFError):
         print("exiting")
-        c.stop_listen()
+        if enablexmpp: xmpp.disconnect()
+        if c :c.stop_listen()
+        exit()
+    except :
+        print("Error exit")
+        e = exc_info()
+        print(e)
+        if enablexmpp: xmpp.disconnect()
+        if c :c.stop_listen()
         exit()
