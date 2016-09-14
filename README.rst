@@ -88,6 +88,8 @@ Occasional encoding error.
 
 Occasional login error (Maybe FB check the unusual login).
 
+Sometimes requests return "Network unreachable", do not know why.
+
 Lost message when mass chatting.
 
 Facebook often change format.
