@@ -14,7 +14,7 @@ from random import random, choice
 import time
 from datetime import datetime
 from bs4 import BeautifulSoup as bs
-from sys import exc_info
+from sys import exc_info,stdout
 
 from .utils import *
 from .models import *
@@ -66,7 +66,7 @@ class Client(object):
         self.seq = "0"
         self.payloadDefault={}
         self.client = 'mercury'
-        self.listening = False
+        self.listening = True
         self.roster = dict()
         self.mid = ''
         try:
@@ -122,7 +122,21 @@ class Client(object):
 
     def _get(self, url, query=None, timeout=30):
         payload=self._generatePayload(query)
-        return self._session.get(url, headers=self._header, params=payload, timeout=timeout)
+        a = 0
+        while 1:
+            try:
+                a = self._session.get(url, headers=self._header, params=payload, timeout=timeout)
+            except :
+                #print(exc_info())
+                a = a+1
+                if self.listening:
+                    stdout.write("_get "+url+" failed, retrying..."+str(a)+"\r")
+                    stdout.flush()
+                    continue
+            break
+        stdout.write("                                                                 \r")
+        stdout.flush()
+        return a
 
     def _post(self, url, query=None, timeout=30):
         payload=self._generatePayload(query)
