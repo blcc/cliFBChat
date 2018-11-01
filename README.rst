@@ -4,9 +4,16 @@ cliFBChat
 
 Receive and reply facebook messages with terminal.
 
-Powered by fbchat python lib(https://github.com/carpedm20/fbchat/).
+Powered by fbchat python lib.
 
 **No API key is needed**. Just use your ID and PASSWORD.
+
+
+Updates
+============
+01Nov2018
+    Catch up fbchat updates.
+    Keep previous login session in fbcookie.txt
 
 
 Installation
@@ -19,9 +26,9 @@ Installation
 
 Dependence
 -------
-fbchat (included)
+fbchat (https://github.com/carpedm20/fbchat/).
 
-termcolor
+termcolor (optional)
 
 Setting
 --------
