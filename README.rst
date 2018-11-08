@@ -1,5 +1,5 @@
 ======
-cliFBChat
+cliIM
 ======
 
 Receive and reply facebook messages with terminal.
@@ -11,6 +11,15 @@ Powered by fbchat python lib.
 
 Updates
 ============
+08Nov2018 Big change!
+    Rename to cliIM.
+    Remove XMPP module.
+    Cmd-line style. (command line at bottom)
+        Terminal style shortcut support.(C-a,C-e,C-u... etc.)
+        Simple 'loading animation'.
+    Save/load login session automatically.
+    
+
 01Nov2018
     Catch up fbchat updates.
     Keep previous login session in fbcookie.txt
@@ -26,6 +35,8 @@ Installation
 
 Dependence
 -------
+python3
+
 fbchat (https://github.com/carpedm20/fbchat/).
 
 termcolor (optional)
@@ -33,7 +44,7 @@ termcolor (optional)
 Setting
 --------
 
-account.txt  # optional, line 1 is FB userid, line 2 is password.
+account.txt  # required, line 1 is FB userid, line 2 is password.
 
 
 
@@ -42,7 +53,7 @@ Usage
 
 .. code-block:: console
 
-    $ python cliFBChat.py
+    $ python cliIM.py
 
 And input FB username(email) and password.
 
@@ -80,13 +91,22 @@ Same as /talkto, but use user id if already know.
 
 Send message to user/group chat.
 
+
+    /quit
+
+Leave cliIM.
+
+
+Trick
+=======
+    You can modify fbroster.txt file to give someone alias.
+
+
 Known issue
 =======
 
-Facebook often change format.
-
-Takes time to exit.
-
+Takes time to exit after /quit or Ctrl-C.
+    Or press Ctrl-C one more time, it will leave with error (but ok).
 
 Author
 =======
