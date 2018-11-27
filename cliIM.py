@@ -4,7 +4,7 @@
 import fbchat ## github fbchat python 
 from threading import Thread
 import sys,time,termios,tty,re,os
-import logging
+import logging, traceback
 try:
     from termcolor import colored
 except:
@@ -44,7 +44,7 @@ class FBChat(fbchat.Client):
     last_tname = ''
     last_mid = ""
     name_color = "yellow"
-    thread_color = "green"
+    thread_color = "yellow"
     time_color = "blue"
     _roster = dict()
 
@@ -55,11 +55,19 @@ class FBChat(fbchat.Client):
             fbcookies = eval(open(fbcookiefile,'r').read())
         else:
             fbcookies = dict()
-        print('[fb] '+USERNAME+' logging in...')
-        if fbcookies:
-            super().__init__(USERNAME, PASSWD, session_cookies=fbcookies, logging_level=logging.WARNING)
-        else:
-            super().__init__(USERNAME, PASSWD, logging_level=logging.WARNING)
+        try:
+            s = Spinner()
+            s.start_spin('[fb] '+USERNAME+' logging in...')
+            if fbcookies:
+                super().__init__(USERNAME, PASSWD, session_cookies=fbcookies, logging_level=logging.WARNING)
+            else:
+                super().__init__(USERNAME, PASSWD, logging_level=logging.WARNING)
+        except:
+            e = sys.exc_info()
+            print(e)
+        finally:
+            s.stop_spin()
+            print('\r[fb] '+USERNAME+' login success \033[K')
 
         fbcookies = self.getSession()
         open(fbcookiefile,'w').write(str(fbcookies))
@@ -72,25 +80,36 @@ class FBChat(fbchat.Client):
 
         self.prompt = colored('[fb] ','red')
 
+    ''' actions for cliIM '''
     def roster(self,itid):
         tid = str(itid)
         name = self._roster.get(tid)
         if name: return name
-        thread = self.fetchThreadInfo(itid)
+        thread = self.fetchThreadInfo(tid)
         name = thread.get('name')
         if name: 
-            self._roster.update({tid : name})
+            self.roster_add({tid : name})
             return name
-        thread = self.fetchUserInfo(itid)
-        name = thread.get('name')
+        name = thread[tid].name
         if name: 
-            self._roster.update({tid : name})
+            self.roster_add(tid, name)
+            return name
+        name = thread[tid].nickname
+        if name: 
+            self.roster_add(tid, name)
+            return name
+        name = thread[tid].last_name
+        if name: 
+            self.roster_add(tid, name)
             return name
         return str(tid)
     def roster_add(self,uid,name):
         self._roster.update({str(uid) : name})
         open(self.fbrosterfile,'w').write(str(self._roster))
 
+    ''' end of actions for cliIM '''
+
+    ''' callback for cliIM '''
     def onMessage(self, mid=None, author_id=None, message=None, message_object=None, thread_id=None, thread_type=fbchat.ThreadType.USER, ts=None, metadata=None, msg=None):
         timestamp = time.strftime('%H:%M',time.localtime(ts/1000.))
         msgtext = message
@@ -108,6 +127,14 @@ class FBChat(fbchat.Client):
             self.prompt = colored('[fb]','red')+colored('['+self.last_tname+'] ',self.name_color)
         if not message:  ## for 貼圖
             msgtext = colored("送出貼圖","cyan")
+            try: # try to get image url
+                imgurl = msg['delta']['attachments'][0]['large_preview']['uri']
+                imgfn  = msg['delta']['attachments'][0]['filename']
+                msgtext += colored(str(imgurl),"blue")
+            except: # if failed...
+                pass
+            #msgtext += colored(str(msg),"blue")
+            #msgtext += colored(str(metadata),"blue")
 
         try:
             if not sender_name == thread_name:
@@ -118,6 +145,7 @@ class FBChat(fbchat.Client):
         except UnicodeDecodeError:
             pass
 
+    ''' end of  callback for cliIM '''
 
 class Spinner():
     Box1 = u'⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
@@ -178,7 +206,7 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
             self.threads.append(th)
         self.c = self.actived_mods[0]
 
-        self.cmd_history = list()
+        self.cmd_history = ['']
         self.cmd_now = 0  ## 0 means using new cmd, cmd_history is negative
         self.cmd_typing = ''
 
@@ -205,6 +233,18 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
         else:
             pass
         return
+    def fbchat_parse_message_and_outpt(self,message,timef='%m-%d %H:%M'):
+        author = colored(message.author,'yellow')
+        timestamp = time.strftime(timef,time.localtime(int(message.timestamp)/1000.))
+        timestamp = colored('['+timestamp+']','blue')
+
+        text = message.text
+        if not text:
+            if message.sticker: text = "[貼圖'"+message.sticker.url+" ']"
+            if message.attachments: text = "[檔案'"+message.attachment.url+" ']"
+        self.output(timestamp+' '+self.c.roster(message.author)+': '+text)
+        
+        
     def _cmd_talkto(self,a):
         r'''  /talkto <list number> : set thread to chat'''
         c = self.c
@@ -218,10 +258,21 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
             if i > len(c.last_users)-1:
                 self.output(colored("/talkto [0-"+str(len(c.last_users)-1)+"]",'red'))
                 return
-            self.output(colored("talk to ","red")+colored(c.last_users[i].name,"yellow"))
             c.last_tid = c.last_users[i].uid
-            c.last_tname = c.last_users[i].name
+            c.last_tname = c.roster(c.last_tid)
             c.prompt = colored('[fb]','red')+colored('['+c.last_tname+'] ','cyan')
+            try:
+                #self.output("fetching old message with "+c.roster(c.last_tid)+" = "+str(c.last_tid))
+                oldmsgs = c.fetchThreadMessages(thread_id=str(c.last_tid),before=0,limit=5)
+                oldmsgs.reverse()
+                for i in oldmsgs:
+                    self.fbchat_parse_message_and_outpt(i,timef='%m-%d %H:%M')
+            except:
+                pass
+                self.output(colored('fetch old messages failed.','red'))
+                e = sys.exc_info()
+                print(e)
+            self.output(colored("talking to ","red")+colored(c.last_tname,"yellow"))
         else:
             pass
         return
@@ -265,11 +316,14 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
                   ,colored(i,'cyan') ))
         return
     def _cmd_clear(self,a):
-        '''  /clear, /cls : clear screen '''
+        '''  /clear : clear screen and current talkto  '''
+        self.c.last_tid = ''
+        self.c.last_tname = ''
+        self.c.prompt = colored('[fb] ','red')
         self.output(chr(27) + "[2J")
         return
     def _cmd_cls(self,a):
-        '''  /clear, /cls : clear screen '''
+        '''  /cls : clear screen '''
         self.output(chr(27) + "[2J")
         return
     def _cmd_quit(self,a):
@@ -280,7 +334,7 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
         '''  /help : list commands'''
         for i in sorted(self.cmd_actions.keys()):
             self.output(self.cmd_actions[i].__doc__)
-
+    
     def _getch(self):  ## grab keycode
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
@@ -292,6 +346,7 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
         return ch
 
     def _do_cmd(self,cmd):
+        ''' when get command '''
         a = cmd
         c = self.c
         tid = c.last_tid
@@ -306,7 +361,8 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
             return
             
         if tid and a:
-            self.output(colored("[%s] send %s to %s "%(('ok' if c.send(thread_id=tid,message=fbchat.Message(text=a)) else 'failed'),a,c.roster(tid)),"blue"))
+            #self.output(colored("[%s] send %s to %s "%(('ok' if c.send(thread_id=tid,message=fbchat.Message(text=a)) else 'failed'),a,c.roster(tid)),"blue"))
+            c.send(thread_id=tid,message=fbchat.Message(text=a))
             return
 
         if not tid:
@@ -316,11 +372,14 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
         if not a:
             self.output("say something to %s ?" %(colored(c.roster(tid),"yellow")))
             return
+
     def _keyact(self,ch): ## action for keypress
+        ''' action when key pressed '''
+        ## TBD hotkeys, dict() style keyact 
         if ord(ch) in self.exitkey:
             self._exit()
             return
-        if ord(ch) in [10,13,15]: ## press enter,C-m,C-o
+        if ord(ch) in [10,13,15]: ## press enter,C-m,C-o,C-j
             cmd = self.cmd[:]
             if cmd: self.cmd_history.append(cmd)
             self.cmd_now = 0
@@ -332,9 +391,9 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
                 self.output(cmd+" error")
                 self.output(str(sys.exc_info()))
             finally:
-                self.cmd = ''
                 pass
                 
+            self.cmd = ''
             self.output() ## refresh cmd_line
             return
         if ord(ch) in [4]: ## press C-d (delete)
@@ -390,9 +449,10 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
             if not self.cmd_now: self.cmd = self.cmd_typing
             self.output()
             return
+        if ord(ch) in [12]: ## press C-l
+            self.output(chr(27) + "[2J")
+            return
 
-        ## TBD hotkeys, dict() style keyact 
-        #self.output(str(ord(ch)))
         self.cmd = self.cmd[:self.curPos]+ch+self.cmd[self.curPos:]
         self.curPos +=1
         self.output() ## refresh cmd_line
@@ -404,7 +464,7 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
         #self.output("exiting...")
 
         print("\nexiting...")
-        sys.exit()
+        #sys.exit()
 
     def cmd_listen(self): ## get user inputs
         self.listening = True
@@ -425,7 +485,9 @@ class cliInterface(): ## get hotkeys, control cmd line and insert text above it
 
         if text: sys.stdout.write("\r"+text+"\033[K"+"\n")
 
-        if self.curPos == cmdlen: self.curEOL = 1
+        if self.curPos >= cmdlen: 
+            self.curEOL = 1
+            self.curPos = cmdlen
         if self.curEOL: self.curPos = cmdlen
 
 
@@ -447,3 +509,4 @@ if __name__ == '__main__':
     c = cliInterface([fb])
     fb.output = c.output
     c.cmd_listen()
+    print("")

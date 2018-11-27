@@ -11,6 +11,9 @@ Powered by fbchat python lib.
 
 Updates
 ============
+27Nov2018
+    Fetch history message when /talkto someone.
+
 08Nov2018 Big change!
     Rename to cliIM.
     Remove XMPP module.
